@@ -31,7 +31,7 @@ void serPutchar(char c)
     serial->Write(serial, &bufSize, (void *)buf);
 }
 
-void bdebug(enum DEBUG_TYPE type, char* string, ...)
+void bdebug(enum DEBUG_TYPE type, const char* string, ...)
 {
     if (!serialSupported)
     {
