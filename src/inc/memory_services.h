@@ -25,5 +25,5 @@ uint64_t getMapKey();
 uint64_t getDescSize();
 
 // Allocates size amount of bytes and returns the memory allocated in buffer
-void uefiAllocatePool(UINTN size, void **buffer);
+void uefiAllocatePool(UINTN size, void *buffer);
 void uefiAllocatePages(UINTN pages, uint64_t *memory, EFI_MEMORY_TYPE memType);

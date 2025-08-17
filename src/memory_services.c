@@ -158,10 +158,10 @@ void setMemoryTypes(EFI_MEMORY_DESCRIPTOR *memory_map)
     }
 }
 
-void uefiAllocatePool(UINTN size, void **buffer)
+void uefiAllocatePool(UINTN size, void *buffer)
 {
     EFI_STATUS status;
-    status = sysT->BootServices->AllocatePool(EfiLoaderData, size, buffer);
+    status = sysT->BootServices->AllocatePool(EfiLoaderData, size, &buffer);
 
     if(status != EFI_SUCCESS)
     {
