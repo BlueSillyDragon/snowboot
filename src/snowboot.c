@@ -1,5 +1,4 @@
 #include <efi.h>
-#include <stdint.h>
 #include <inc/error.h>
 #include "efi/efiprot.h"
 #include "efi/x86_64/efibind.h"
