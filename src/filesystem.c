@@ -1,129 +1,127 @@
-#include "efi/efierr.h"
 #include <efi.h>
 #include <inc/globals.h>
 #include <inc/log.h>
 #include <inc/memory_services.h>
 #include <inc/fs/filesystem.h>
 #include <stddef.h>
-#include <stdint.h>
 
-EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *simpleFs;
-EFI_FILE_PROTOCOL *root;
+EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *SimpleFs;
+EFI_FILE_PROTOCOL *Root;
 
-EFI_STATUS initFsServices() {
-    EFI_STATUS exitStatus;
-    EFI_GUID simpleFsGuid = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
+EFI_STATUS BlInitFsServices() {
+    EFI_STATUS ExitStatus;
+    EFI_GUID SimpleFsGuid = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
 
-    EFI_HANDLE *handles = NULL;
-    UINTN bufferSize = 0;
+    EFI_HANDLE *Handles = NULL;
+    UINTN BufferSize = 0;
 
-    exitStatus = sysT->BootServices->LocateHandle(
+    ExitStatus = BlGetSystemTable()->BootServices->LocateHandle(
         ByProtocol,
-        &simpleFsGuid, 
+        &SimpleFsGuid, 
         NULL, 
-        &bufferSize,
-        handles);
+        &BufferSize,
+        Handles);
     
-    if (exitStatus == EFI_BUFFER_TOO_SMALL)
+    if (ExitStatus == EFI_BUFFER_TOO_SMALL)
     {
-        sysT->BootServices->AllocatePool(EfiLoaderData, bufferSize, (void**)&handles);
-    } else if (exitStatus == EFI_NOT_FOUND) {
-        bdebug(ERROR, "Simple Filesystem Protocol is not supported on this device!");
-        return exitStatus;
+        BlGetSystemTable()->BootServices->AllocatePool(EfiLoaderData, BufferSize, (void**)&Handles);
+    } else if (ExitStatus == EFI_NOT_FOUND) {
+        BlDebug(ERROR, "Simple Filesystem Protocol is not supported on this device!");
+        return ExitStatus;
     }
 
-    exitStatus = sysT->BootServices->LocateHandle(
+    ExitStatus = BlGetSystemTable()->BootServices->LocateHandle(
         ByProtocol,
-        &simpleFsGuid, 
+        &SimpleFsGuid, 
         NULL, 
-        &bufferSize,
-        handles);
+        &BufferSize,
+        Handles);
     
-    if (EFI_ERROR(exitStatus))
+    if (EFI_ERROR(ExitStatus))
     {
-        bdebug(ERROR, "Could not obtain Simple Filesystem Protocol handles!\r\n");
-        return exitStatus;
+        BlDebug(ERROR, "Could not obtain Simple Filesystem Protocol Handles!\r\n");
+        return ExitStatus;
     }
 
-    for (UINTN i = 0; i < bufferSize / sizeof(EFI_HANDLE); i++) {
-        bdebug(INFO, "File System found!\r\n");
+    for (UINTN i = 0; i < BufferSize / sizeof(EFI_HANDLE); i++) {
+        BlDebug(INFO, "File System found!\r\n");
     }
 
-    exitStatus = sysT->BootServices->HandleProtocol(handles[0], &simpleFsGuid, (void **)&simpleFs);
+    ExitStatus = BlGetSystemTable()->BootServices->HandleProtocol(Handles[0], &SimpleFsGuid, (void **)&SimpleFs);
 
-    if (EFI_ERROR(exitStatus)) {
-        bdebug(ERROR, "Error occured retrieving Simple Filesystem Protocol!\r\n");
-        return exitStatus;
+    if (EFI_ERROR(ExitStatus)) {
+        BlDebug(ERROR, "Error occured retrieving Simple Filesystem Protocol!\r\n");
+        return ExitStatus;
     }
 
-    return exitStatus;
+    return ExitStatus;
 }
 
-int openVolume() {
-    EFI_STATUS exitStatus;
+INT32 BlOpenVolume() {
+    EFI_STATUS ExitStatus;
 
-    exitStatus = simpleFs->OpenVolume(simpleFs, &root);
+    ExitStatus = SimpleFs->OpenVolume(SimpleFs, &Root);
 
-    if (EFI_ERROR(exitStatus)) {
+    if (EFI_ERROR(ExitStatus)) {
         return -1;
     }
 
     return 0;
 }
 
-EFI_FILE_PROTOCOL *openFile(const CHAR16 *filepath, uint64_t mode, uint64_t attributes) {
-    EFI_STATUS exitStatus;
-    EFI_FILE_PROTOCOL *openedFile;
+EFI_FILE_PROTOCOL *BlOpenFile(const CHAR16 *Filepath, UINT64 Mode, UINT64 Attributes) {
+    EFI_STATUS ExitStatus;
+    EFI_FILE_PROTOCOL *OpenedFile;
     
-    uefiAllocatePool(sizeof(EFI_FILE_PROTOCOL), (void *)openedFile);
+    UefiAllocatePool(sizeof(EFI_FILE_PROTOCOL), (VOID *)OpenedFile);
 
-    exitStatus = root->Open(root, &openedFile, filepath, mode, attributes);
+    ExitStatus = Root->Open(Root, &OpenedFile, (CHAR16 *)Filepath, Mode, Attributes);
 
-    if (EFI_ERROR(exitStatus)) {
+    if (EFI_ERROR(ExitStatus)) {
         return NULL;
     }
 
-    return openedFile;
+    return OpenedFile;
 }
 
-int readFile(EFI_FILE_PROTOCOL *file, void *readBuffer) {
-    EFI_STATUS exitStatus;
-    UINTN bufferSize = 0;
+INT32 BlReadFile(EFI_FILE_PROTOCOL *File, void *ReadBuffer) {
+    EFI_STATUS ExitStatus;
+    UINTN BufferSize = 0;
 
     // Get the size of the file
 
-    void *buffer = NULL;
+    VOID *Buffer = NULL;
 
-    EFI_FILE_INFO *fileInfo;
-    EFI_GUID fileInfoId = EFI_FILE_INFO_ID;
+    EFI_FILE_INFO *FileInfo;
+    EFI_GUID FileInfoId = EFI_FILE_INFO_ID;
 
-    exitStatus = file->GetInfo(file, &fileInfoId, &bufferSize, buffer);
+    ExitStatus = File->GetInfo(File, &FileInfoId, &BufferSize, Buffer);
 
-    if (EFI_ERROR(exitStatus) && exitStatus != EFI_BUFFER_TOO_SMALL) {
-        bdebug(ERROR, "Error getting file info!\r\n");
+    if (EFI_ERROR(ExitStatus) && ExitStatus != EFI_BUFFER_TOO_SMALL) {
+        BlDebug(ERROR, "Error getting file info!\r\n");
         return -1;
     }
 
-    uefiAllocatePool(bufferSize, buffer);
+    UefiAllocatePool(BufferSize, Buffer);
 
-    exitStatus = file->GetInfo(file, &fileInfoId, &bufferSize, buffer);
+    ExitStatus = File->GetInfo(File, &FileInfoId, &BufferSize, Buffer);
 
-    if (EFI_ERROR(exitStatus)) {
-        bdebug(ERROR, "Could not get File Info!\r\n");
+    if (EFI_ERROR(ExitStatus)) {
+        BlDebug(ERROR, "Could not get File Info!\r\n");
         return -1;
     }
 
-    fileInfo = buffer;
+    FileInfo = Buffer;
 
-    bdebug(INFO, "Size of file is: %d bytes\r\n", fileInfo->FileSize);
+    BlDebug(INFO, "Size of file is: %d bytes\r\n", FileInfo->FileSize);
 
-    // Read the file into readBuffer
+    // Read the file into ReadBuffer
 
-    uefiAllocatePool(fileInfo->FileSize, readBuffer);
-    exitStatus = file->Read(file, &fileInfo->FileSize, readBuffer);
+    UefiAllocatePool(FileInfo->FileSize, ReadBuffer);
+    ExitStatus = File->Read(File, &FileInfo->FileSize, ReadBuffer);
 
-    if (EFI_ERROR(exitStatus)) {
-        bdebug(ERROR, "Could not read file!\r\n");
+    if (EFI_ERROR(ExitStatus)) {
+        BlDebug(ERROR, "Could not read file!\r\n");
         return -1;
     }
 

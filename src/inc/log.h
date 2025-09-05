@@ -1,9 +1,11 @@
 #pragma once
 
+#include <efi.h>
+
 enum DEBUG_TYPE {INFO, WARNING, ERROR, NONE};
 
-void initSerialServices();
+void BlInitSerialServices();
 
-void serPutchar(char c);
+void BlSerialPutchar(CHAR8 C);
 
-void bdebug(enum DEBUG_TYPE type, const char *string, ...);
+void BlDebug(enum DEBUG_TYPE Type, const char *String, ...);

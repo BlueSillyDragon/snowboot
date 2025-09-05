@@ -1,9 +1,9 @@
 #pragma once
 #include <efi.h>
-#include <stdint.h>
+#include <inc/types.h>
 
-EFI_STATUS initFsServices();
+EFI_STATUS BlInitFsServices();
 
-int openVolume();
-EFI_FILE_PROTOCOL *openFile(const CHAR16 *filepath, uint64_t mode, uint64_t attributes);
-int readFile(EFI_FILE_PROTOCOL *file, void *readBuffer);
+int BlOpenVolume();
+EFI_FILE_PROTOCOL *BlOpenFile(const CHAR16 *Filepath, UINT64 Mode, UINT64 Attributes);
+int BlReadFile(EFI_FILE_PROTOCOL *File, void *ReadBuffer);

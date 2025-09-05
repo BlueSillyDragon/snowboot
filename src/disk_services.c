@@ -4,150 +4,150 @@
 #include "inc/log.h"
 #include <stdint.h>
 
-static struct disk disks[10];
-static struct disk parts[10];
+static DISK Disks[10];
+static DISK Parts[10];
 
-int disk_count = 0;
-int part_count = 0;
+INT32 DiskCount = 0;
+INT32 PartCount = 0;
 
-void detectDisks()
+void BlDetectDisks()
 {
 
-    EFI_STATUS sta;
+    EFI_STATUS Status;
 
-    EFI_GUID blockIoGuid = EFI_BLOCK_IO_PROTOCOL_GUID;
-    EFI_GUID diskIoGuid = EFI_DISK_IO_PROTOCOL_GUID;
+    EFI_GUID BlockIoGuid = EFI_BLOCK_IO_PROTOCOL_GUID;
+    EFI_GUID DiskIoGuid = EFI_DISK_IO_PROTOCOL_GUID;
 
-    EFI_HANDLE *handles = NULL;
-    UINTN bufferSize = 0;
+    EFI_HANDLE *Handles = NULL;
+    UINTN BufferSize = 0;
 
-    sta = sysT->BootServices->LocateHandle(                       // First we call LocateProtocol with a buffer size of 0
+    Status = BlGetSystemTable()->BootServices->LocateHandle(                       // First we call LocateProtocol with a buffer size of 0
         ByProtocol,                                                         // to figure out how much space we need to allocate for it
-        &blockIoGuid, 
+        &BlockIoGuid, 
         NULL, 
-        &bufferSize,
-        handles);
+        &BufferSize,
+        Handles);
     
-    if (sta == EFI_BUFFER_TOO_SMALL)
+    if (Status == EFI_BUFFER_TOO_SMALL)
     {
-        sysT->BootServices->AllocatePool(EfiLoaderData, bufferSize, (void**)&handles);
+        BlGetSystemTable()->BootServices->AllocatePool(EfiLoaderData, BufferSize, (void**)&Handles);
     }
 
-    sta = sysT->BootServices->LocateHandle(
+    Status = BlGetSystemTable()->BootServices->LocateHandle(
         ByProtocol,
-        &blockIoGuid, 
+        &BlockIoGuid, 
         NULL, 
-        &bufferSize,
-        handles);
+        &BufferSize,
+        Handles);
 
-    if (EFI_ERROR(sta))
+    if (EFI_ERROR(Status))
     {
-        bdebug(ERROR, "Could not obtain BlockIO handles!\r\n");
+        BlDebug(ERROR, "Could not obtain Block IO Handles!\r\n");
         for (;;);
     }
 
-    for(int i = 0; (UINTN)i < bufferSize / sizeof(EFI_HANDLE); ++i)
+    for(INT32 i = 0; (UINTN)i < BufferSize / sizeof(EFI_HANDLE); ++i)
     {
-        EFI_BLOCK_IO_PROTOCOL *blockIo = NULL;
-        EFI_DISK_IO_PROTOCOL *diskIo = NULL;
-        struct disk *dsk;
-        struct disk *prt;
-        sta = sysT->BootServices->HandleProtocol(handles[i], &blockIoGuid, (void**)&blockIo);
+        EFI_BLOCK_IO_PROTOCOL *BlockIo = NULL;
+        EFI_DISK_IO_PROTOCOL *DiskIo = NULL;
+        PDISK Disk;
+        PDISK Partition;
+        Status = BlGetSystemTable()->BootServices->HandleProtocol(Handles[i], &BlockIoGuid, (void**)&BlockIo);
 
         // Save the partition so we can probe it later
-        if (blockIo->Media->LogicalPartition)
+        if (BlockIo->Media->LogicalPartition)
         {
-            sta = sysT->BootServices->HandleProtocol(handles[i], &diskIoGuid, (void**)&diskIo);
+            Status = BlGetSystemTable()->BootServices->HandleProtocol(Handles[i], &DiskIoGuid, (void**)&DiskIo);
 
-            if (EFI_ERROR(sta))
+            if (EFI_ERROR(Status))
             {
-                bdebug(WARNING, "Partition %d does not support Disk I/O\r\n", part_count);
+                BlDebug(WARNING, "Partition %d does not support Disk I/O\r\n", PartCount);
             }
 
-            prt = &parts[part_count];
-            prt->bio = blockIo;
-            prt->dio = diskIo;
-            prt->sectors = blockIo->Media->LastBlock + 1;
-            prt->blkSize = blockIo->Media->BlockSize;
-            prt->id = i;
-            part_count++;
+            Partition = &Parts[PartCount];
+            Partition->BlockIo = BlockIo;
+            Partition->DiskIo = DiskIo;
+            Partition->Sectors = BlockIo->Media->LastBlock + 1;
+            Partition->BlockSize = BlockIo->Media->BlockSize;
+            Partition->Id = i;
+            PartCount++;
             continue;
         }
 
-        else if (!blockIo->Media->MediaPresent)
+        else if (!BlockIo->Media->MediaPresent)
         {
             continue;
         }
 
-        else if (EFI_ERROR(sta))
+        else if (EFI_ERROR(Status))
         {
-            bdebug(ERROR, "Error Obtaining Block I/O Protocol!\r\n");
+            BlDebug(ERROR, "Error Obtaining Block I/O Protocol!\r\n");
             continue;
         }
 
-        sta = sysT->BootServices->HandleProtocol(handles[i], &diskIoGuid, (void**)&diskIo);
+        Status = BlGetSystemTable()->BootServices->HandleProtocol(Handles[i], &DiskIoGuid, (void**)&DiskIo);
 
-        if (EFI_ERROR(sta))
+        if (EFI_ERROR(Status))
         {
-            bdebug(ERROR, "Error Obtaining Disk I/O Protocol!\r\n");
+            BlDebug(ERROR, "Error Obtaining Disk I/O Protocol!\r\n");
             continue;
         }
 
-        dsk = &disks[i];
-        dsk->bio = blockIo;
-        dsk->dio = diskIo;
-        dsk->sectors = blockIo->Media->LastBlock + 1;
-        dsk->blkSize = blockIo->Media->BlockSize;
-        dsk->id = i;
-        disk_count++;
+        Disk = &Disks[i];
+        Disk->BlockIo = BlockIo;
+        Disk->DiskIo = DiskIo;
+        Disk->Sectors = BlockIo->Media->LastBlock + 1;
+        Disk->BlockSize = BlockIo->Media->BlockSize;
+        Disk->Id = i;
+        DiskCount++;
     }
 
-    bdebug(INFO, "Number of disks is: %d\r\n", disk_count);
+    BlDebug(INFO, "Number of disks is: %d\r\n", DiskCount);
 }
 
-int getDiskCount()
+int BlGetDiskCount()
 {
-    return disk_count;
+    return DiskCount;
 }
 
-int getPartCount()
+int BlGetPartCount()
 {
-    return part_count;
+    return PartCount;
 }
 
-void readDisk(int idx, int offset, int bytes, void *buffer)
+VOID BlReadDisk(INT32 Index, UINT64 Offset, INT32 Bytes, VOID *Buffer)
 {
-    EFI_STATUS sta;
-    struct disk *dsk;
+    EFI_STATUS Status;
+    PDISK Disk;
 
-    dsk = &disks[idx];
+    Disk = &Disks[Index];
 
-    sta = dsk->dio->ReadDisk(dsk->dio, dsk->bio->Media->MediaId, offset, bytes, &buffer);
+    Status = Disk->DiskIo->ReadDisk(Disk->DiskIo, Disk->BlockIo->Media->MediaId, Offset, Bytes, &Buffer);
 
-    if (EFI_ERROR(sta))
+    if (EFI_ERROR(Status))
     {
-        bdebug(ERROR, "Could not read from disk: %d\r\n", idx);
-        buffer = NULL;
+        BlDebug(ERROR, "Could not read from disk: %d\r\n", Index);
+        Buffer = NULL;
     }
 }
 
-void readPart(int idx, uint64_t offset, int bytes, void *buffer)
+void BlReadPart(INT32 Index, UINT64 Offset, INT32 Bytes, VOID *Buffer)
 {
-    EFI_STATUS sta;
-    struct disk *prt;
+    EFI_STATUS Status;
+    PDISK Partition;
 
-    prt = &parts[idx];
+    Partition = &Parts[Index];
 
-    bdebug(INFO, "offset: %d\r\n", offset);
-    sta = prt->dio->ReadDisk(prt->dio, prt->bio->Media->MediaId, offset, bytes, buffer);
+    BlDebug(INFO, "offset: %d\r\n", Offset);
+    Status = Partition->DiskIo->ReadDisk(Partition->DiskIo, Partition->BlockIo->Media->MediaId, Offset, Bytes, Buffer);
 
-    if (EFI_ERROR(sta))
+    if (EFI_ERROR(Status))
     {
-        bdebug(ERROR, "Could not read from partition: %d\r\n", idx);
+        BlDebug(ERROR, "Could not read from partition: %d\r\n", Index);
     }
 }
 
-void initDiskServices(void)
+void BlInitDiskServices(void)
 {
-    detectDisks();
+    BlDetectDisks();
 }

@@ -7,6 +7,7 @@ sudo mkdir /mnt/EFI
 sudo mkdir /mnt/EFI/BOOT
 sudo cp build/src/snowboot.efi /mnt/EFI/BOOT/BOOTX64.EFI
 sudo cp snowboot.conf /mnt/EFI/BOOT/
+sudo cp kernel.exe /mnt/
 sudo umount /mnt
 sudo losetup -d /dev/loop0
 echo "Finished Generating Image!"

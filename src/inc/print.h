@@ -2,5 +2,5 @@
 
 #include "efi.h"
 
-void print(CHAR16 *fmt, ...);
-void printEfiStatus(EFI_STATUS sta);
+VOID BlPrint(CHAR16 *Format, ...);
+VOID BlPrintEfiStatus(EFI_STATUS Status);

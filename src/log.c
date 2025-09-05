@@ -1,121 +1,121 @@
-#include "inc/globals.h"
-#include "inc/print.h"
-#include "inc/log.h"
+#include <inc/globals.h>
+#include <inc/print.h>
+#include <inc/log.h>
 #include <stdarg.h>
 #include <stdint.h>
 
-EFI_SERIAL_IO_PROTOCOL *serial;
+EFI_SERIAL_IO_PROTOCOL *Serial;
 
-uint8_t serialSupported;
+UINT8 SerialSupported;
 
-void initSerialServices()
+VOID BlInitSerialServices()
 {
-    EFI_STATUS sta;
-    EFI_GUID serialGuid = EFI_SERIAL_IO_PROTOCOL_GUID;
+    EFI_STATUS ExitStatus;
+    EFI_GUID SerialGuid = EFI_SERIAL_IO_PROTOCOL_GUID;
 
-    sta = sysT->BootServices->LocateProtocol(&serialGuid, NULL, (void**)&serial);
+    ExitStatus = BlGetSystemTable()->BootServices->LocateProtocol(&SerialGuid, NULL, (void**)&Serial);
 
-    if (EFI_ERROR(sta)) {
-        print(u"Unable to locate Serial I/O Protocol!\r\n");
-        serialSupported = 0;
-    } else serialSupported = 1;
+    if (EFI_ERROR(ExitStatus)) {
+        BlPrint(u"Unable to locate Serial I/O Protocol!\r\n");
+        SerialSupported = 0;
+    } else SerialSupported = 1;
 }
 
-void serPutchar(char c)
+VOID BlSerialPutchar(CHAR8 C)
 {
-    UINTN bufSize = 1;
-    char buf[1];
+    UINTN BufferSize = 1;
+    char Buffer[1];
 
-    buf[0] = c;
+    Buffer[0] = C;
 
-    serial->Write(serial, &bufSize, (void *)buf);
+    Serial->Write(Serial, &BufferSize, (void *)Buffer);
 }
 
-void bdebug(enum DEBUG_TYPE type, const char* string, ...)
+VOID BlDebug(enum DEBUG_TYPE Type, const char* String, ...)
 {
-    if (!serialSupported)
+    if (!SerialSupported)
     {
         return;
     } 
 
     UINTN bufSize;
 
-    switch (type)
+    switch (Type)
     {
         case INFO:
             bufSize = 19;
-            serial->Write(serial, &bufSize, "[ \033[94mBoot\033[0m ] ");
+            Serial->Write(Serial, &bufSize, "[ \033[94mBoot\033[0m ] ");
             break;
         case WARNING:
             bufSize = 22;
-            serial->Write(serial, &bufSize, "[ \033[33mWarning\033[0m ] ");
+            Serial->Write(Serial, &bufSize, "[ \033[33mWarning\033[0m ] ");
             break;
         case ERROR:
             bufSize = 20;
-            serial->Write(serial, &bufSize, "[ \033[31mError\033[0m ] ");
+            Serial->Write(Serial, &bufSize, "[ \033[31mError\033[0m ] ");
             break;
         case NONE:
             break;
     }
 
-    uint64_t int_to_print;
-    uint64_t number[256];
-    int j;
-    char c;
-    va_list args;
+    uint64_t IntToPrint;
+    uint64_t Number[256];
+    int J;
+    char C;
+    va_list Args;
 
-    va_start(args, string);
+    va_start(Args, String);
 
-    for (int i = 0; string[i] != u'\0'; i++) {
-        if (string[i] == u'%') {
+    for (int i = 0; String[i] != u'\0'; i++) {
+        if (String[i] == u'%') {
             i++; // Get character after %
 
-            switch (string[i]) {
+            switch (String[i]) {
                 case 'c':
-                    c = va_arg(args, int);
-                    serPutchar(c);
+                    C = va_arg(Args, int);
+                    BlSerialPutchar(C);
                     break;
                 case 'd':
-                    int_to_print = va_arg(args, uint64_t);
-                    j = 0;
+                    IntToPrint = va_arg(Args, uint64_t);
+                    J = 0;
                     do {
-                        number[j] = (int_to_print % 10);
-                        int_to_print = (int_to_print - int_to_print % 10) / 10;
-                        j++;
+                        Number[J] = (IntToPrint % 10);
+                        IntToPrint = (IntToPrint - IntToPrint % 10) / 10;
+                        J++;
                     }
-                    while(int_to_print > 0);
+                    while(IntToPrint > 0);
 
-                    j--;
+                    J--;
 
-                    for (; j>=0; j--) {
-                        c = number[j] + '0';
-                        serPutchar(c);
+                    for (; J>=0; J--) {
+                        C = Number[J] + '0';
+                        BlSerialPutchar(C);
                     }
 
                     continue;
                 case 'x':
-                    int_to_print = va_arg(args, uint64_t);
-                    j = 0;
+                    IntToPrint = va_arg(Args, uint64_t);
+                    J = 0;
                     do {
-                        number[j] = (int_to_print % 16);
-                        int_to_print = (int_to_print - int_to_print % 16) / 16;
-                        j++;
+                        Number[J] = (IntToPrint % 16);
+                        IntToPrint = (IntToPrint - IntToPrint % 16) / 16;
+                        J++;
                     }
-                    while(int_to_print > 0);
+                    while(IntToPrint > 0);
 
-                    j--;
+                    J--;
 
-                    for (; j>=0; j--) {
-                        if (number[j] > 0x9)
+                    for (; J>=0; J--) {
+                        if (Number[J] > 0x9)
                         {
-                            c = number[j] + ('0' + 7);
+                            C = Number[J] + ('0' + 7);
                         }
 
                         else
                         {
-                            c = number[j] + '0';
+                            C = Number[J] + '0';
                         }
-                        serPutchar(c);
+                        BlSerialPutchar(C);
                     }
 
                     continue;
@@ -125,9 +125,9 @@ void bdebug(enum DEBUG_TYPE type, const char* string, ...)
         }
 
         else {
-            serPutchar(string[i]);
+            BlSerialPutchar(String[i]);
         }
     }
 
-    va_end(args);
+    va_end(Args);
 }

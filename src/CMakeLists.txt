@@ -10,7 +10,8 @@ set(SOURCES
 "memory_services.c"
 "virtual_memory.c"
 "acpi.c"
-"elf.c")
+"elf.c"
+"pe.c")
 add_executable(snowboot ${SOURCES})
 
 target_include_directories(snowboot

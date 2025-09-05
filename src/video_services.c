@@ -1,81 +1,82 @@
 #include "inc/boot_protocol/snowboot.h"
 #include "inc/globals.h"
 #include "inc/print.h"
+#include <inc/log.h>
 #include "inc/memory_services.h"
 #include "inc/video_services.h"
 #include <stdint.h>
 
-EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info;
-EFI_GUID gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
-EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *Info;
+EFI_GUID GopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+EFI_GRAPHICS_OUTPUT_PROTOCOL *Gop;
 
-snowboot_framebuffer *initVideoServices() {
-    EFI_STATUS sta;
-    snowboot_framebuffer *fb;
-    sta = sysT->BootServices->LocateProtocol(&gopGuid, NULL, (void**)&gop);
+SNOWBOOT_FRAMEBUFFER *BlInitVideoServices() {
+    EFI_STATUS Status;
+    SNOWBOOT_FRAMEBUFFER *Framebuffer;
+    Status = BlGetSystemTable()->BootServices->LocateProtocol(&GopGuid, NULL, (VOID**)&Gop);
 
-    if (EFI_ERROR(sta)) {
-        print(u"Could not locate GOP, you may be using a pre-UEFI machine, try using a BIOS build of SnowBoot instead.\r\n");
+    if (EFI_ERROR(Status)) {
+        BlPrint(u"Could not locate GOP, you may be using a pre-UEFI machine, try using a BIOS build of SnowBoot instead.\r\n");
         asm volatile ( "hlt" );
     }
 
-    UINTN sizeOfInfo, numModes, nativeMode;
+    UINTN SizeOfInfo, NumberOfModes, NativeMode;
 
-    sta = gop->QueryMode(gop, gop->Mode == NULL ? 0:gop->Mode->Mode, &sizeOfInfo, &info);
+    Status = Gop->QueryMode(Gop, Gop->Mode == NULL ? 0:Gop->Mode->Mode, &SizeOfInfo, &Info);
 
-    if (sta == EFI_NOT_STARTED) {
-        gop->SetMode(gop, 0);
+    if (Status == EFI_NOT_STARTED) {
+        Gop->SetMode(Gop, 0);
     }
 
-    if (EFI_ERROR(sta)) {
-        print(u"Unable to retrieve native mode!\n\r");
+    if (EFI_ERROR(Status)) {
+        BlDebug(ERROR, "Unable to retrieve native mode!\n\r");
         asm volatile ( "hlt" );
     }
 
     else {
-        nativeMode = gop->Mode->Mode;
-        numModes = gop->Mode->MaxMode;
-        print(u"Video mode retrieved!\n\r");
+        NativeMode = Gop->Mode->Mode;
+        NumberOfModes = Gop->Mode->MaxMode;
+        BlDebug(INFO, "Video mode retrieved!\n\r");
     }
 
     // Set video mode and get frame buffer
 
-    sta = gop->SetMode(gop, 10);
+    Status = Gop->SetMode(Gop, 10);
 
-    if (EFI_ERROR(sta)) {
-        print(u"Could not set video mode! Defaulting to native...\r\n");
-        sta = gop->SetMode(gop, 0);
-        if (EFI_ERROR(sta)) {
-            print(u"Failure to set video mode! Halting...\r\n");
+    if (EFI_ERROR(Status)) {
+        BlDebug(ERROR, "Could not set video mode! Defaulting to native...\r\n");
+        Status = Gop->SetMode(Gop, 0);
+        if (EFI_ERROR(Status)) {
+            BlDebug(ERROR, "Failure to set video mode! Halting...\r\n");
             asm volatile ( "hlt" );
         }
     }
 
-    uint64_t fb_ptr;
-    uefiAllocatePages(1, &fb_ptr, EfiReservedMemoryType);
-    fb = (uint64_t *)fb_ptr;
+    UINT64 FramebufferAddress;
+    UefiAllocatePages(1, &FramebufferAddress, EfiReservedMemoryType);
+    Framebuffer = (SNOWBOOT_FRAMEBUFFER *)FramebufferAddress;
 
-    fb->base = gop->Mode->FrameBufferBase;
-    fb->size = gop->Mode->FrameBufferSize;
-    fb->horizontalRes = gop->Mode->Info->HorizontalResolution;
-    fb->verticalRes = gop->Mode->Info->VerticalResolution;
-    fb->pixelsPerScanline = gop->Mode->Info->PixelsPerScanLine;
-    fb->pitch = (fb->pixelsPerScanline * 4);
+    Framebuffer->base = Gop->Mode->FrameBufferBase;
+    Framebuffer->size = Gop->Mode->FrameBufferSize;
+    Framebuffer->horizontalRes = Gop->Mode->Info->HorizontalResolution;
+    Framebuffer->verticalRes = Gop->Mode->Info->VerticalResolution;
+    Framebuffer->pixelsPerScanline = Gop->Mode->Info->PixelsPerScanLine;
+    Framebuffer->pitch = (Framebuffer->pixelsPerScanline * 4);
 
-    return fb;
+    return Framebuffer;
 }
 
-void plotPixels (snowboot_framebuffer *framebuffer, int x, int y, uint32_t pixel) {
-    volatile uint32_t *fb_ptr = (uint32_t *)framebuffer->base;
+VOID BlPlotPixels (SNOWBOOT_FRAMEBUFFER *Framebuffer, INT32 X, INT32 Y, UINT32 Pixel) {
+    volatile UINT32 *FramebufferAddress = (UINT32 *)Framebuffer->base;
 
-    fb_ptr[x * (framebuffer->pitch / 4) + y] = pixel;
+    FramebufferAddress[X * (Framebuffer->pitch / 4) + Y] = Pixel;
 }
 
-void changeBackgroundColor(snowboot_framebuffer *framebuffer, uint32_t bgColor) {
+VOID BlChangeBackgroundColor(SNOWBOOT_FRAMEBUFFER *Framebuffer, UINT32 BackgroundColor) {
 
-    for (int i = 0; i < framebuffer->verticalRes; i++) {
-        for (int j = 0; j < framebuffer->horizontalRes; j++) {
-            plotPixels(framebuffer,i, j, bgColor);
+    for (UINT32 i = 0; i < Framebuffer->verticalRes; i++) {
+        for (UINT32 j = 0; j < Framebuffer->horizontalRes; j++) {
+            BlPlotPixels(Framebuffer,i, j, BackgroundColor);
         }
     }
 

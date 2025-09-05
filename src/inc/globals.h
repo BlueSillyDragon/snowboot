@@ -2,5 +2,5 @@
 
 #include "efi.h"
 
-extern EFI_SYSTEM_TABLE *sysT;
-extern EFI_HANDLE imgH;
+EFI_SYSTEM_TABLE *BlGetSystemTable();
+EFI_HANDLE BlGetImageHandle();

@@ -1,20 +1,16 @@
 #include <efi.h>
 #include <stdint.h>
-#include "efi/efidef.h"
-#include "efi/efierr.h"
-#include "efi/x86_64/efibind.h"
-#include "inc/boot_protocol/snowboot.h"
-#include "inc/globals.h"
-#include "inc/log.h"
-#include "inc/print.h"
+#include <inc/boot_protocol/snowboot.h>
+#include <inc/globals.h>
+#include <inc/log.h>
 #include "inc/memory_services.h"
-#include "inc/virtual_memory.h"
+#include <inc/virtual_memory.h>
 
-uint64_t num_of_entries;
+UINT64 NumberOfEntries;
 
-uint64_t mapk;
+UINT64 BootloaderMapKey;
 
-UINTN descriptor_size = 0;
+UINTN DescriptorSize = 0;
 
 void *memset(void *s, int c, size_t n) {
     uint8_t *p = (uint8_t *)s;
@@ -49,9 +45,9 @@ int memcmp(const void *s1, const void *s2, size_t n) {
     return 0;
 }
 
-SNOWBOOT_MEM_TYPE uefiTypeToNative(EFI_MEMORY_TYPE type)
+SNOWBOOT_MEM_TYPE UefiTypeToNative(EFI_MEMORY_TYPE Type)
 {
-    switch (type)
+    switch (Type)
     {
         case EfiReservedMemoryType:
         case EfiUnusableMemory:
@@ -83,110 +79,136 @@ SNOWBOOT_MEM_TYPE uefiTypeToNative(EFI_MEMORY_TYPE type)
     }
 }
 
-EFI_MEMORY_DESCRIPTOR* getMemoryMap(pagemap_t pagemap)
+EFI_MEMORY_DESCRIPTOR* BlGetMemoryMap(pagemap_t PageMap)
 {
-    EFI_STATUS status;
+    EFI_STATUS ExitStatus;
 
-    UINTN memory_map_size = 0;
-    EFI_MEMORY_DESCRIPTOR *memory_map = NULL;
-    UINTN map_key = 0;
-    UINT32 descriptor_version = 0;
+    UINTN MemoryMapSize = 0;
+    EFI_MEMORY_DESCRIPTOR *MemoryMap = NULL;
+    UINTN MapKey = 0;
+    UINT32 DescriptorVersion = 0;
 
     // Get the size of the amount of memory we need to Allocate memory for the MemoryMap
-    status = sysT->BootServices->GetMemoryMap(&memory_map_size, memory_map, &map_key, &descriptor_size, &descriptor_version);
+    ExitStatus = BlGetSystemTable()->BootServices->GetMemoryMap(
+        &MemoryMapSize,
+        MemoryMap,
+        &MapKey,
+        &DescriptorSize,
+        &DescriptorVersion);
 
-    if (status == EFI_BUFFER_TOO_SMALL)     // If status is not EFI_BUFFER_TOO_SMALL something has gone wrong
+    if (ExitStatus == EFI_BUFFER_TOO_SMALL)     // If status is not EFI_BUFFER_TOO_SMALL something has gone wrong
     {
-        bdebug(INFO, "Buffer too small, correct size has been returned in memory_map_size\r\n");
+        BlDebug(INFO, "Buffer too small, correct size has been returned in memory_map_size\r\n");
     }
 
     // Allocate memory for MemoryMap
-    void *buffer;
-    status = sysT->BootServices->AllocatePool(EfiReservedMemoryType, (memory_map_size + (2 * descriptor_size)), &buffer);
-    if (status != EFI_SUCCESS)
+    void *Buffer;
+    ExitStatus = BlGetSystemTable()->BootServices->AllocatePool(
+        EfiReservedMemoryType,
+        (MemoryMapSize + (2 * DescriptorSize)),
+        &Buffer);
+
+    if (ExitStatus != EFI_SUCCESS)
     {
-        bdebug(ERROR, "Could not allocate memory for MemoryMap!\r\n");
+        BlDebug(ERROR, "Could not allocate memory for MemoryMap!\r\n");
     }
 
-    memory_map = buffer;
+    MemoryMap = Buffer;
 
     // Ensure that the Memory Map is identity mapped
-    mapPages(pagemap, ((uint64_t)memory_map & ~0xfff), ((uint64_t)memory_map & ~0xfff), 0x1, 0x5000);
+    mapPages(
+        PageMap,
+        ((uint64_t)MemoryMap & ~0xfff),
+        ((uint64_t)MemoryMap & ~0xfff),
+        0x1,
+        0x5000);
 
     // Get the MemoryMap
-    status = sysT->BootServices->GetMemoryMap(&memory_map_size, memory_map, &map_key, &descriptor_size, &descriptor_version);
-    if (status != EFI_SUCCESS)
+    ExitStatus = BlGetSystemTable()->BootServices->GetMemoryMap(
+        &MemoryMapSize,
+        MemoryMap,
+        &MapKey,
+        &DescriptorSize,
+        &DescriptorVersion);
+
+    if (ExitStatus != EFI_SUCCESS)
     {
-        bdebug(ERROR, "Something went wrong when retrieving MemoryMap!\r\n");
-        bdebug(INFO, "MemoryMapSize: %d | MemoryMap Address: 0x%x | Desc Size: %d\r\n", memory_map_size, memory_map, descriptor_size);
+        BlDebug(ERROR, "Something went wrong when retrieving MemoryMap!\r\n");
+        BlDebug(INFO, "MemoryMapSize: %d | MemoryMap Address: 0x%x | Desc Size: %d\r\n",
+            MemoryMapSize,
+            MemoryMap,
+            DescriptorSize);
     }
 
     else
     {
-        bdebug(INFO, "MemoryMap was retrieved!\r\n");
-        bdebug(INFO, "MemoryMapSize: %d | MemoryMap Address: 0x%x | Desc Size: %d\r\n", memory_map_size, memory_map, descriptor_size);
+        BlDebug(INFO, "MemoryMap was retrieved!\r\n");
+        BlDebug(INFO, "MemoryMapSize: %d | MemoryMap Address: 0x%x | Desc Size: %d\r\n",
+            MemoryMapSize,
+            MemoryMap,
+            DescriptorSize);
     }
 
-    num_of_entries = memory_map_size / descriptor_size;
-    mapk = map_key;
+    NumberOfEntries = MemoryMapSize / DescriptorSize;
+    BootloaderMapKey = MapKey;
 
-    return memory_map;
+    return MemoryMap;
 }
 
-uint64_t getEntryCount()
+uint64_t BlGetEntryCount()
 {
-    return num_of_entries;
+    return NumberOfEntries;
 }
 
-uint64_t getMapKey()
+uint64_t BlGetMapKeyey()
 {
-    return mapk;
+    return BootloaderMapKey;
 }
 
-uint64_t getDescSize()
+uint64_t BlGetDescSize()
 {
-    return descriptor_size;
+    return DescriptorSize;
 }
 
-void setMemoryTypes(EFI_MEMORY_DESCRIPTOR *memory_map)
+VOID BlSetMemoryTypes(EFI_MEMORY_DESCRIPTOR *MemoryMap)
 {
-    snowboot_memory_descriptor *desc;
-    for (int i = 0; i < num_of_entries; i++)
+    SNOWBOOT_MEMORY_DESCRIPTOR *Descriptor;
+    for (int i = 0; i < NumberOfEntries; i++)
     {
-        desc = (EFI_MEMORY_DESCRIPTOR *)((uint8_t *)memory_map + (i * getDescSize()));
-        desc->type = uefiTypeToNative(desc->type);
+        Descriptor = (EFI_MEMORY_DESCRIPTOR *)((uint8_t *)MemoryMap + (i * BlGetDescSize()));
+        Descriptor->type = UefiTypeToNative(Descriptor->type);
     }
 }
 
-void uefiAllocatePool(UINTN size, void *buffer)
+void UefiAllocatePool(UINTN size, void *buffer)
 {
     EFI_STATUS status;
-    status = sysT->BootServices->AllocatePool(EfiLoaderData, size, &buffer);
+    status = BlGetSystemTable()->BootServices->AllocatePool(EfiLoaderData, size, &buffer);
 
     if(status != EFI_SUCCESS)
     {
-        bdebug(ERROR, "Failed to allocate %d bytes of memory!\r\n", size);
-    } else bdebug(INFO, "Allocated %d bytes! Starting address: 0x%x\r\n", size, buffer);
+        BlDebug(ERROR, "Failed to allocate %d bytes of memory!\r\n", size);
+    } else BlDebug(INFO, "Allocated %d bytes! Starting address: 0x%x\r\n", size, buffer);
 }
 
-void uefiAllocatePages(UINTN pages, uint64_t *memory, EFI_MEMORY_TYPE mem_type)
+void UefiAllocatePages(UINTN pages, uint64_t *memory, EFI_MEMORY_TYPE mem_type)
 {
     EFI_STATUS status;
-    status = sysT->BootServices->AllocatePages(AllocateAnyPages, mem_type, pages, memory);
+    status = BlGetSystemTable()->BootServices->AllocatePages(AllocateAnyPages, mem_type, pages, memory);
 
     if(status != EFI_SUCCESS)
     {
-        bdebug(ERROR, "Failed to allocate %d pages!\r\n", pages);
+        BlDebug(ERROR, "Failed to allocate %d pages!\r\n", pages);
         switch (status)
         {
             case EFI_OUT_OF_RESOURCES:
-                bdebug(ERROR, "Out of resources!\r\n");
+                BlDebug(ERROR, "Out of resources!\r\n");
                 break;
             case EFI_INVALID_PARAMETER:
-                bdebug(ERROR, "Invalid Parameter!\r\n");
+                BlDebug(ERROR, "Invalid Parameter!\r\n");
                 break;
             case EFI_NOT_FOUND:
-                bdebug(ERROR, "Page not found!\r\n");
+                BlDebug(ERROR, "Page not found!\r\n");
                 break;
         }
     }

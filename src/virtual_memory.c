@@ -34,7 +34,7 @@ pagemap_t newPagemap()
 {
     pagemap_t pagemap;
     pagemap.levels = 4;
-    uefiAllocatePages(1, &pagemap.topLevel, EfiReservedMemoryType);
+    UefiAllocatePages(1, &pagemap.topLevel, EfiReservedMemoryType);
     memset((uint64_t *)pagemap.topLevel, 0x0, 0x1000);
 
     return pagemap;
@@ -50,11 +50,11 @@ uint64_t *getLowerLevel(uint64_t *currentLevel, uint64_t entry)
     else
     {
         uint64_t nextLvlAddr;
-        uefiAllocatePages(1, &nextLvlAddr, EfiReservedMemoryType);
+        UefiAllocatePages(1, &nextLvlAddr, EfiReservedMemoryType);
         memset((uint64_t *)nextLvlAddr, 0x0, 0x1000);
         nextLevel = (uint64_t *)nextLvlAddr;
         currentLevel[entry] = PTE_NEW((size_t)nextLevel, PT_TABLE_FLAGS);
-        if(!PT_IS_TABLE(currentLevel[entry])) bdebug(INFO, "Failed to create new page entry!\r\n");
+        if(!PT_IS_TABLE(currentLevel[entry])) BlDebug(INFO, "Failed to create new page entry!\r\n");
     }
     return (uint64_t *)nextLevel;
 }
@@ -63,7 +63,7 @@ void mapPage(pagemap_t pagemap, uint64_t virtAddress, uint64_t physAddress, uint
 {
     if (virtAddress % 0x1000 != 0 || physAddress % 0x1000 != 0)
     {
-        bdebug(ERROR, "Physical Address or Virtual Address not aligned to 4KB!\r\n");
+        BlDebug(ERROR, "Physical Address or Virtual Address not aligned to 4KB!\r\n");
         for(;;);
     }
     uint64_t pml4Idx = PML4_ID((uint64_t)virtAddress);
@@ -85,12 +85,12 @@ void mapPage(pagemap_t pagemap, uint64_t virtAddress, uint64_t physAddress, uint
 
     pml1[pml1Idx] = (uint64_t)(physAddress | flags);
 
-    if(!PT_IS_TABLE(pml1[pml1Idx])) {bdebug(INFO, "Not mapping a 4KB page!\r\n");}
+    if(!PT_IS_TABLE(pml1[pml1Idx])) {BlDebug(INFO, "Not mapping a 4KB page!\r\n");}
 }
 
 void mapPages(pagemap_t pagemap, uint64_t virtAddress, uint64_t phys_address, uint64_t flags, uint64_t count) {
     if (virtAddress % 0x1000 != 0 || phys_address % 0x1000 != 0 || count % 0x1000 != 0) {
-        bdebug(ERROR, "Uh oh!\r\n");
+        BlDebug(ERROR, "Uh oh!\r\n");
     }
 
     for (uint64_t i = 0; i < count; ) {
@@ -106,15 +106,15 @@ uint64_t virtToPhys(pagemap_t pagemap, uint64_t virtAddress)
     uint64_t pml2Idx = PD_ID((uint64_t)virtAddress);
     uint64_t pml1Idx = PT_ID((uint64_t)virtAddress);
 
-    bdebug(INFO, "PML4 Index of Virtual Address 0x%x is: %d\r\n", virtAddress, pml4Idx);
-    bdebug(INFO, "PDPT Index of Virtual Address 0x%x is: %d\r\n", virtAddress, pml3Idx);
-    bdebug(INFO, "PD Index of Virtual Address 0x%x is: %d\r\n", virtAddress, pml2Idx);
-    bdebug(INFO, "PT Index of Virtual Address 0x%x is: %d\r\n", virtAddress, pml1Idx);
+    BlDebug(INFO, "PML4 Index of Virtual Address 0x%x is: %d\r\n", virtAddress, pml4Idx);
+    BlDebug(INFO, "PDPT Index of Virtual Address 0x%x is: %d\r\n", virtAddress, pml3Idx);
+    BlDebug(INFO, "PD Index of Virtual Address 0x%x is: %d\r\n", virtAddress, pml2Idx);
+    BlDebug(INFO, "PT Index of Virtual Address 0x%x is: %d\r\n", virtAddress, pml1Idx);
     
     uint64_t *pml4, *pml3, *pml2, *pml1;
     pml4 = (uint64_t *)pagemap.topLevel;
 
-    bdebug(INFO, "PML4 address 0x%x\r\n", pagemap.topLevel);
+    BlDebug(INFO, "PML4 address 0x%x\r\n", pagemap.topLevel);
 
     pml3 = getLowerLevel(pml4, pml4Idx);
 
@@ -122,7 +122,7 @@ uint64_t virtToPhys(pagemap_t pagemap, uint64_t virtAddress)
 
     pml1 = getLowerLevel(pml2, pml2Idx);
 
-    bdebug(INFO, "Virtual Address 0x%x is mapped to Physical Address 0x%x\r\n", virtAddress, (PTE_ADDR(pml1[pml1Idx])));
+    BlDebug(INFO, "Virtual Address 0x%x is mapped to Physical Address 0x%x\r\n", virtAddress, (PTE_ADDR(pml1[pml1Idx])));
 
     return (PTE_ADDR(pml1[pml1Idx]));
 }

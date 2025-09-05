@@ -19,7 +19,7 @@ typedef struct {
     uint32_t verticalRes;
     uint32_t pixelsPerScanline;
     uint32_t pitch;
-} snowboot_framebuffer;
+} SNOWBOOT_FRAMEBUFFER;
 
 typedef struct
 {
@@ -28,21 +28,21 @@ typedef struct
     uint64_t virtualStart;
     uint64_t numOfPages;
     uint64_t attribute;
-} snowboot_memory_descriptor;
+} SNOWBOOT_MEMORY_DESCRIPTOR;
 
 typedef struct
 {
-    uint32_t snowbootMajor;    // We'll pass the version of SnowBoot to Kernel for the sake of it
-    uint32_t snowbootMinor;
-    uint32_t snowbootPatch;
+    uint32_t SnowbootMajor;    // We'll pass the version of SnowBoot to Kernel for the sake of it
+    uint32_t SnowbootMinor;
+    uint32_t SnowbootPatch;
 
-    uint64_t hhdm;  // Pass the Higher-Half Direct Map to the Kernel
+    uint64_t Hhdm;  // Pass the Higher-Half Direct Map to the Kernel
 
-    snowboot_framebuffer *framebuffer;  // Obviously we need to pass the framebuffer to the Kernel
+    SNOWBOOT_FRAMEBUFFER *Framebuffer;  // Obviously we need to pass the framebuffer to the Kernel
 
-    uint64_t memMapEntries;
-    uint64_t descSize;
-    snowboot_memory_descriptor *memoryMap;
+    uint64_t MemoryMapEntries;
+    uint64_t DescriptorSize;
+    SNOWBOOT_MEMORY_DESCRIPTOR *memoryMap;
 
-    uint64_t kernelPaddr;  // Pass the physical address of the kernel so it can remap itself
-} snowboot_info;
+    uint64_t KernelPhysicalAddress;  // Pass the physical address of the kernel so it can remap itself
+} SNOWBOOT_INFO;

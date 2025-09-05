@@ -4,3 +4,4 @@ cc-runtime
 freestnd-c-hdrs
 nyu-efi
 .cache
+kernel.exe
